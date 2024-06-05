@@ -5,9 +5,9 @@ pipeline {
   environment {
   dockerHubCredentialsID	    = 'DockerHub'  		    			// DockerHub credentials ID.
   imageName   		            = 'marwantarek11/java-app'     			        // DockerHub repo/image name.
-	openshiftCredentialsID	    = 'openshift-token'	    				// KubeConfig credentials ID.   
-	nameSpace                   = 'marwantarek'
-	clusterUrl                  = 'https://api.ocp-training.ivolve-test.com:6443'
+  openshiftCredentialsID	    = 'openshift'	    				// KubeConfig credentials ID.   
+  nameSpace                 	    = 'marwantarek'
+  clusterUrl                        = 'https://api.ocp-training.ivolve-test.com:6443'
     }
     
     stages {       
