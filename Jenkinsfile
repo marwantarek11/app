@@ -1,19 +1,19 @@
 @Library('Jenkins-Shared-Library')_
+
 pipeline {
-    pipeline {
     agent { 
         // Specifies a label to select an available agent
         node { 
             label 'ec2-slave'
-        }
-    }
+        }
+    }
     
-  environment {
-  dockerHubCredentialsID	    = 'DockerHub'  		    			// DockerHub credentials ID.
-  imageName   		            = 'marwantarek11/java-app'     			        // DockerHub repo/image name.
-  openshiftCredentialsID	    = 'openshift'	    				// KubeConfig credentials ID.   
-  nameSpace                 	    = 'marwantarek'
-  clusterUrl                        = 'https://api.ocp-training.ivolve-test.com:6443'
+    environment {
+        dockerHubCredentialsID = 'DockerHub'                   // DockerHub credentials ID.
+        imageName              = 'marwantarek11/java-app'      // DockerHub repo/image name.
+        openshiftCredentialsID = 'openshift'                   // KubeConfig credentials ID.   
+        nameSpace              = 'marwantarek'
+        clusterUrl             = 'https://api.ocp-training.ivolve-test.com:6443'
     }
     
     stages {       
@@ -21,30 +21,25 @@ pipeline {
         stage('Run Unit Test') {
             steps {
                 script {
-                	
-                	runUnitTests
-            		
-        	}
-    	    }
-	}
-	
-       
-        stage('Build and Push Docker Image') {
-            steps {
-                script {
-                 	
-                 	buildandPushDockerImage("${dockerHubCredentialsID}", "${imageName}")
-                        
-                    	
+                    runUnitTests
                 }
             }
         }
-	stage('Edit new image in deployment.yaml file') {
+        
+        stage('Build and Push Docker Image') {
+            steps {
+                script {
+                    buildandPushDockerImage("${dockerHubCredentialsID}", "${imageName}")
+                }
+            }
+        }
+        
+        stage('Edit new image in deployment.yaml file') {
             steps {
                 script { 
-                	dir('oc') {
-				        editNewImage("${imageName}")
-			}
+                    dir('oc') {
+                        editNewImage("${imageName}")
+                    }
                 }
             }
         }
@@ -52,10 +47,9 @@ pipeline {
         stage('Deploy on OpenShift Cluster') {
             steps {
                 script { 
-			dir('oc') {
-                        
-				deployOnOc("${openshiftCredentialsID}", "${nameSpace}", "${clusterUrl}")
-			}
+                    dir('oc') {
+                        deployOnOc("${openshiftCredentialsID}", "${nameSpace}", "${clusterUrl}")
+                    }
                 }
             }
         }
