@@ -1,71 +1,123 @@
-# Jenkins Deployment Automation for OpenShift
+# Jenkins Openshift Deployment Automation
 
-## Overview
+This project aims to automate the deployment process of an application to an OpenShift cluster using Jenkins. It utilizes a Jenkins slave to handle the deployment process. The steps involve building and pushing a Docker image to the OpenShift cluster, and then deploying the application using token credentials obtained from a service account. Additionally, it utilizes a shared library for reusability and easier maintenance.
 
-This project automates the deployment process of applications to an OpenShift cluster using Jenkins. The deployment process involves building and pushing a Docker image to a container registry, then deploying the image to the OpenShift cluster using token credentials obtained from a service account. The Jenkins pipeline leverages a shared library for streamlined automation.
+## Prerequisites
 
-## Step-by-Step Guide
+- Jenkins master configured with this plugins
+- Jenkins slave running on an EC2 instance
+- OpenShift cluster access
+- Docker installed on Jenkins slave
+- GitHub repositories:
+  - Application code: [marwantarek11/app](https://github.com/marwantarek11/app)
+  - Shared Library: [marwantarek11/Shared-Library-App](https://github.com/marwantarek11/Shared-Library-App)
 
-### 1. Jenkins Configuration
+## Pipeline Stages
+- Test
+- Build Docker Image
+- Editing Deployment.yml
+- Push Docker Image
+- Deploy Image On Openshift
 
-#### Description:
-Ensure Jenkins is installed and configured on your system. Jenkins will serve as the automation engine for orchestrating the deployment process.
+  
+## Setup
 
-#### Steps:
-1. Install Jenkins on your preferred environment (e.g., on-premises, cloud).
-2. Configure Jenkins settings such as URL, security, and system preferences.
-3. Install necessary plugins for Docker, OpenShift, and Jenkins Pipeline via the Jenkins Plugin Manager.
+1. **Set Up GitHub Shared Library**:
+   [marwantarek11/Shared-Library-App](https://github.com/marwantarek11/Shared-Library-App)
 
-### 2. OpenShift Cluster Configuration
+    1- runUnitTests.groovy
+    ```groovy
+    #!/usr/bin/env groovy
+    def call() {
+    	echo "Running Unit Test..."
+    	sh './gradlew clean test'	
+    }
+    ```
+    2- buildandPushDockerImage function
+    ```groovy
+    #!usr/bin/env groovy
+    def call(String dockerHubCredentialsID, String imageName) {
+    
+    	// Log in to DockerHub 
+    	withCredentials([usernamePassword(credentialsId: "${dockerHubCredentialsID}", usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD')]) {
+    		sh "docker login -u ${USERNAME} -p ${PASSWORD}"
+        }
+        
+        // Build and push Docker image
+        echo "Building and Pushing Docker image..."
+        sh "docker build -t ${imageName}:${BUILD_NUMBER} ."
+        sh "docker push ${imageName}:${BUILD_NUMBER}"	 
+    }
+    ```
+    3- EditNewImage
+    ```groovy
+    #!/usr/bin/env groovy
 
-#### Description:
-Set up an OpenShift cluster where the applications will be deployed. You'll need a functioning OpenShift environment and appropriate permissions to deploy applications.
+    def call(String imageName) {
+    
+    // Edit deployment.yaml with new Docker Hub image
+    sh "sed -i 's|image:.*|image: ${imageName}:${BUILD_NUMBER}|g' deployment.yml"
 
-#### Steps:
-1. Set up an OpenShift cluster, either on-premises or using a cloud provider like AWS, Azure, or GCP.
-2. Ensure you have administrative access or sufficient permissions to manage projects and deploy applications.
-3. Create a dedicated project or namespace for deploying your application.
+    }
+    ```
+    4- Deploy Image On Openshift
+    ```groovy
+    #!/usr/bin/env groovy
 
-### 3. Docker Image Build
+    def call(String openshiftCredentialsID, String nameSpace, String clusterUrl) {
 
-#### Description:
-Create a Dockerfile for your application to define the image build process. Jenkins will use this Dockerfile to build the Docker image, which will then be pushed to a container registry.
+    
+    // Login to OpenShift using the service account token
+    withCredentials([string(credentialsId: openshiftCredentialsID, variable: 'OC_TOKEN')]) {
+        sh "oc login --token=$OC_TOKEN --server=$clusterUrl --insecure-skip-tls-verify"
+    }
 
-#### Steps:
-1. Write a Dockerfile that describes the environment and dependencies required for your application.
-2. Configure Jenkins to build the Docker image using the Docker plugin or Docker Pipeline.
-3. Set up credentials in Jenkins to access the container registry where the Docker image will be pushed.
+    // Apply the updated deployment.yaml to the OpenShift cluster
+    sh "oc apply -f . --namespace=${nameSpace}"
+    }
+    ```
 
-### 4. Jenkins Pipeline
+  2. **Configure Jenkins System**
+       ![Screenshot 2024-06-06 050350](https://github.com/marwantarek11/app/assets/167176241/f0b745fd-e73e-4b6d-8487-eeb5ab209268)
 
-#### Description:
-Define a Jenkins Pipeline script to automate the deployment process. The pipeline will encompass stages for building the Docker image, pushing it to the container registry, and deploying it to the OpenShift cluster.
+  3. **Configure Jenkins Slave**: Set up a Jenkins slave on an EC2 instance, ensuring Docker is installed on it.
 
-#### Steps:
-1. Write a Jenkinsfile to define the stages and steps of the deployment pipeline.
-2. Utilize a shared library for common deployment tasks to maintain consistency and reusability across pipelines.
-3. Configure pipeline triggers and parameters as needed for manual or automated execution.
+     
+      - Create Ec2 instance and make sure Instance type t3.medium for instance stability and create keypair to connect via ssh
+    
+      - Edit Network setting and apply VPC and Public subnet , Enable Auto-assign public IP, Create Security group assign Inbound Security Group Rules Type SSH port 22 , Add Security Group Rule type Custom TCP Port 8080 for Jenkins server.
+    
+      - Launch an instance
+     
+      - ![ec2](https://github.com/marwantarek11/app/assets/167176241/6c6659d9-a832-42cf-9cb0-ab9876413afa)
 
-### 5. OpenShift Deployment
+      -  Install Openshift,Docker,JDK
+        ![oc-java-docker](https://github.com/marwantarek11/app/assets/167176241/fb115690-5256-466f-a0e1-770dbb3c8f68)
 
-#### Description:
-Configure the Jenkins Pipeline to deploy the Docker image to the OpenShift cluster. Jenkins will use token credentials obtained from a service account to authenticate the deployment.
+    
 
-#### Steps:
-1. Create a service account in OpenShift with appropriate permissions for deployment.
-2. Configure Jenkins to retrieve authentication token from the service account for accessing the OpenShift cluster.
-3. Define deployment configurations in the Jenkins Pipeline script to deploy the Docker image to the desired project or namespace in OpenShift.
 
-### 6. EC2 Worker Slave
+5. **Configure Jenkins Credentials**: Add credentials for accessing the OpenShift cluster. This can be done by creating a new OpenShift token credential in Jenkins credentials.
+   ![cred](https://github.com/marwantarek11/app/assets/167176241/2a981b7f-fb7e-417c-91f7-e276174f3e0a)
+   ![ubuntu-cred](https://github.com/marwantarek11/app/assets/167176241/a770b720-b6c1-4482-a1ad-a4d1baeda07f)
 
-#### Description:
-Set up an EC2 instance to serve as a Jenkins worker slave for scalability and parallel execution. This EC2 instance will execute deployment tasks as part of the Jenkins Pipeline.
 
-#### Steps:
-1. Launch an EC2 instance in your preferred AWS region with the necessary configuration (e.g., instance type, AMI, security groups).
-2. Install and configure the Jenkins agent software on the EC2 instance to enable it to connect to the Jenkins master.
-3. Configure Jenkins to utilize the EC2 worker slave for deployment tasks, ensuring proper labeling and node configuration in the Jenkins Pipeline script.
+6. **Configure Jenkins Slave**: Set up a Jenkins Slave Configuration
+     ![node-config1](https://github.com/marwantarek11/app/assets/167176241/21b870b2-45d3-454e-a6c9-6e9030327c66)
+     ![node-config2](https://github.com/marwantarek11/app/assets/167176241/78ea9997-4cb0-4a34-a8f1-91e1f9e1571c)
 
-## Usage
+    - Verify Slave Configured Successful:
+        ![slave-verify](https://github.com/marwantarek11/app/assets/167176241/0d77699e-4b33-41b7-b631-b9f200d9ea21)
+        ![slave-verfiy-2](https://github.com/marwantarek11/app/assets/167176241/0aa169b1-455d-44e7-878c-6c3f2e5a44cf)
 
-Once the setup is complete, the deployment process can be initiated through the Jenkins Pipeline. Simply trigger the pipeline, and Jenkins will automatically execute the defined stages, building the Docker image, pushing it to the container registry, and deploying it to the OpenShift cluster using the specified configurations.
+
+7. **Configure Jenkins Pipeline**: Set up a Jenkins pipeline job that fetches the code from the application repository, builds the Docker image, pushes it to the OpenShift registry, and deploys the application to the OpenShift cluster using the shared library.
+        ![jenkins-config1](https://github.com/marwantarek11/app/assets/167176241/229cc42f-b5df-4737-8703-751933149bcc)
+        ![jenkins-config2](https://github.com/marwantarek11/app/assets/167176241/e833bb83-4938-4579-8b78-a807adac2ee3)
+        
+
+8. **Jenkins Pipeline Stages**:
+      ![jenkins-build](https://github.com/marwantarek11/app/assets/167176241/2fd8d88a-5ded-4173-99be-62bbff7dbf7a)
+      ![oc-get-all](https://github.com/marwantarek11/app/assets/167176241/b804bdee-fd6c-4315-9170-5321f039e8c9)
+      ![jenkins-openshift](https://github.com/marwantarek11/app/assets/167176241/e5174021-0750-4bdd-ab86-19e005548b35)
+
