@@ -69,15 +69,3 @@ Set up an EC2 instance to serve as a Jenkins worker slave for scalability and pa
 ## Usage
 
 Once the setup is complete, the deployment process can be initiated through the Jenkins Pipeline. Simply trigger the pipeline, and Jenkins will automatically execute the defined stages, building the Docker image, pushing it to the container registry, and deploying it to the OpenShift cluster using the specified configurations.
-
-## Contributing
-
-Contributions are welcome! If you find any issues or have suggestions for improvements, please feel free to submit a pull request or open an issue on GitHub.
-
-## License
-
-This project is licensed under the [MIT License](LICENSE).
-
----
-
-This comprehensive guide outlines each step required to set up and configure Jenkins deployment automation for OpenShift. Adjust the instructions according to your specific environment and requirements. Let me know if you need further clarification on any step!
