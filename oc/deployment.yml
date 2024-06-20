@@ -14,6 +14,6 @@ spec:
     spec:
       containers:
       - name: java-app
-        image: alikhames/java-app:v1
+        image: marwantarek/java-app:v1
         ports:
         - containerPort: 8081
